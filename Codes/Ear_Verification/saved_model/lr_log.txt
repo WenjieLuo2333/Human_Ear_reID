@@ -1,0 +1,2 @@
+For ResNet 50, Set lr = 0.00001
+Fro BaseModel2 set lr = 0.0001
