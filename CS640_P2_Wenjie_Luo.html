@@ -1,0 +1,331 @@
+
+
+<html>
+<head>
+<title> CS640 PA2 Wenjie Luo Ear Verification  </title>
+<style>
+<!--
+body{
+font-family: 'Trebuchet MS', Verdana;
+}
+p{
+font-family: 'Trebuchet MS', Times;
+margin: 10px 10px 15px 20px;
+}
+h3{
+margin: 5px;
+}
+h2{
+margin: 10px;
+}
+h1{
+margin: 10px 0px 0px 20px;
+}
+div.main-body{
+align:center;
+margin: 30px;
+}
+hr{
+margin:20px 0px 20px 0px;
+}
+-->
+</style>
+</head>
+
+<body>
+<center>
+<a href="http://www.bu.edu"><img border="0" src="http://www.cs.bu.edu/fac/betke/images/bu-logo.gif"
+width="119" height="120"></a>
+</center>
+
+<h1>CS640 PA2 Ear Verification</h1>
+<p> 
+ CS 440/640 Programming assignment 2 <br>
+ Wenjie Luo <br>
+ Xinsha Wang <br>
+ 2019/4/8 
+</p>
+
+<div class="main-body">
+<hr>
+<h2> Problem Definition </h2>
+<p>
+In this assignment, we build a Convolutional Neural Network to implement human ear verification.<br>
+The main goal is to identify the owner of the ear within constrained and unconstrained conditions. We divided this project into two parts. The segmentation and the verification.<br><br>
+The first challenge is to segment ears from images. This is because our datasets contain ears pictures taken in wild and those taken in lab also contain unnecessary details like the donut device. Thus, segmentation is neccessaty to improve verification accuracy.<br><br>
+And the second problem is to implement the ear verification algorithm. That is, given two ear pictures we should know whether they belong to the same person or not.<br> This can also be used to fulfill the ear identification -- computing the verification loss of anchor picture with each person's picture in the database and choose the one with the lowest loss and highest softmax output.<br>
+</p>
+
+
+
+<hr>
+<h2> Background Survey</h2>
+	<p><a href = "https://www.sciencedirect.com/science/article/pii/S092523121730543X">Ear recognition: More than a survey</a>concludes the performance of AWE toolbox on different datasets.</p>
+	<p><a href = "https://www.sciencedirect.com/science/article/pii/S1877050915029567">Human Ear Recognition Using Geometrical Features Extraction</a> preprocess the data with resizing and Gaussian Filter. And then they use the Snake Model to detect ears. And then an edge detection is used. (1.5*5 median filter. 2.Global Threshold Binarization. 3. Canny edge detector). After edge detection and morphological operations, they extract a feature vector with seven values and use K-NN to make the classification.</p>
+	<p>There're also some works that extract feature vectors at first and then use CNN to make classification.</p>
+	<p>We decide to try some geometric detection and CNN classification.</p>
+
+<hr>
+
+<h2> Method and Implementation </h2>
+<p>
+  We implemented a Faster RCNN to detect and segment the ears. We labeled all the images by ourselves to locate the ears in the original datasets' images. And then used these images to train a Faster RCNN that can work both in constrained and unconstrained conditions.
+<p>  
+  In segmentation part, we also tried to use some geometric methods to segment the ears.<br>
+  1. Build-in opencv Haar Cascade with pretrained weights online.<br>
+  2. Build-in opencv edge detection function 'Findcontour' is also used.<br>
+</p>
+
+<p>  
+  In verification part, we tried to trained different models.<br>
+  1. A feature extraction model with pretrained ResNet50 weights and a classifier with ResNet shortcut connection.<br>
+  2. A feature extraction model with shortcut connection and a classifier with shortcut connection.The feature-map model and classifier are trained at the same time. <br>
+  3. A feature extraction model with shortcut connection and a classifier with shortcut connection.The feature-map model is pre-trained with Triplet Loss and then be used to train the classifier.<br>
+</p>
+
+<hr>
+<h2> Basic Pipeline </h2>
+
+<p>
+	<p></p>
+     1. Data Preprocess.(Making annotation, cropping and resizing)<br>
+     	<p>We resized all the images into 960*680 to accelerate the computing speed. And we manually make annotation of ears location and crop the ears in each image.</p><br>
+     2. Generate data pairs and triads(For Triplet Loss) for CNN training. <br>
+     	<p>The pair data is like [Img1,Img2,label]. Img1 and Img2 are images to be verified and label 0 means two images come from different people.<br><br>
+     	The triad data is structured like [Anchor_Img,Positive_Img,Negative_Img]. Triad data is used to train a triplet_loss feature map extraction model. Triplet loss aims to bring Anchor_Img and Positive_Img closer,Anchor_Img and Negative_Img farther.(All in feature domain.) <br>
+     	And then the triplet loss feature map can be used to train the classifier</p><br>
+     3. Ear Detection(Segmentation) with Faster RCNN. (findcontour and Haar works not that good.)<br>
+     	<p>Detect ears with Faster-RCNN and then crop the detected ears,resize them into 224*224.</p><br>
+     4. Ear verification with a CNN claasifier.<br>
+     	<p>Run verification on the detected ears. (Training set and test set are generated in step-2 pair datas.)</p><br>
+</p>
+
+<hr>
+<h2>Experiments</h2>
+<p>
+1. Findcontour and Haar detection performance.<br>
+2. Train two detection models with different performance(evaluate with mean IOU) to evaluate the detection model's contribution to the whole program. The better one is trained on more epochs to have lower loss.<br/>
+3. Experiment to evaluate the effect of learning rate.<br/>
+4. Experiment to evaluate the performance of three feature extraction model.<br/>
+5. Evaluate the contribution of the two parts to the whole model's performance.<br/>
+ </p>
+<p>
+  The evaluation of detection is based on mean IOU, of verification is based on accuracy and of the whole program is based on accuracy.
+</p>
+
+
+<hr>
+<h2> Results</h2>
+<p>
+List your experimental results.  Provide examples of input images and output
+images. If relevant, you may provide images showing any intermediate steps.  If
+your work involves videos, do not submit the videos but only links to them.
+<p> <mark>The notation EX ? is related to the experiments defined in previous section.</mark></p>
+</p>
+
+<p>
+<table>
+<tr><td colspan=3><center><h3>Results</h3></center></td></tr>
+<tr>
+<td> Experiment </td><td> Database </td> <td> Result1 </td> <td> Result2</td> <td> Evaluation</td>
+</tr>
+<tr>
+  <td> EX_1_Findcontour</td> 
+  <td> <p>Images resized into 960*680</p></td> 
+  <td> <img src="./images/FindContour.png"> </td>
+  <td> <img src="./images/FindContour2.png"> </td>
+  <td> <p>N/A</p> </td>
+</tr> 
+<tr>
+  <td> EX_1_Haar_Detection<br>One is Good and One is bad</td> 
+  <td> <p>Images resized into 960*680</p> </td> 
+  <td> <img src="./images/haar_1.png"> </td>
+  <td> <img src="./images/Haar2.png"> </td>
+  <td> <p>N/A</p> </td>
+</tr> 
+<tr>
+  <td> Ex_2_Faster_RCNN <br> The second one is wrongly detected</td> 
+  <td> <p>Images resized into 960*680</p> </td> 
+  <td> <img src="./images/1_001_.jpg"  </td>
+  <td> <img src="./images/1_170_.jpg">  </td>
+  <td> <p>IOU: 0.8718</p> </td>
+</tr> 
+<tr>
+  <td> Ex_2_Better_Faster_RCNN<br>Both are correctly detected</td> 
+  <td> <p>Images resized into 960*680</p></td> 
+  <td> <img src="./images/2_001_.jpg">  </td>
+  <td> <img src="./images/2_170_.jpg">  </td>
+  <td> <p>IOU: 0.9047</p> </td>
+</tr> 
+<tr>
+  <td> Ex_4_Cls_with_Pretrained_ResNet 50 </td> 
+  <td> <p>Detected ears resized in 224*224</p></td> 
+  <td> <p>Test Accuracy with the simple Faster RCNN is about 80%.</p> </td>
+  <td> <p>N/A</p> </td>
+  <td> <p>Best_Validation_Accuracy is about 85%</p> </td>
+</tr> 
+
+<tr>
+  <td> Ex_4_Cls_with_Simple_ResNet_Feature_Map </td> 
+  <td> <p>Detected ears resized in 224*224</p></td> 
+  <td> <p>Test Accuracy with the simple Faster RCNN is 79.1%.</p> </td>
+  <td> <p>Test Accuracy with the Better Faster RCNN is about 82.3%.</p> </td>
+  <td> <p>Best_Validation_Accuracy is at 92%</p> </td>
+</tr> 
+
+<tr>
+  <td> Ex_4_Cls_with_Triplet_Loss_Feature_Map</td> 
+  <td> <p>Detected ears resized in 224*224</p></td> 
+  <td> <p>Best Test Accuracy with the simple Faster RCNN is about 84.43%.</p> </td>
+  <td> <p>Best Test Accuracy with the Better Faster RCNN is about 88.1%.</p> </td>
+  <td> <p>Best_Validation_Accuracy is at 95.66%</p> </td>
+</tr> 
+
+<tr>
+  <td> Ex_5_Cls_with_Triplet_Loss_After_Removeing_Dirty_Data</td> 
+  <td> <p>Detected ears resized in 224*224</p></td> 
+  <td> <p>Best Test Accuracy with the simple Faster RCNN is about 89.41%.</p> </td>
+  <td> <p>Best Test Accuracy with the Better Faster RCNN is about 92.3%.</p> </td>
+  <td> <p>Best_Validation_Accuracy is at 99%</p> </td>
+</tr> 
+
+</table>
+
+<table>
+<tr><td colspan=3><center><h3>Training Logs</h3></center></td></tr>
+<tr>
+<td> Experiment </td><td> Training Log </td> 
+</tr>
+
+<tr>
+  <td> Small Triplet loss trainable feature Model </td> 
+  <td> <img src="./images/Trinable_Tri.png"></td> 
+</tr> 
+
+<tr>
+  <td> Small Triplet loss Untrainable feature Model </td> 
+  <td><img src="./images/History_Untrined_Tri.png"></td> 
+</tr> 
+
+<tr>
+  <td> Large Triplet loss trainable feature Model</td> 
+  <td> <img src="./images/Tri_Trainable_55x55.png"></td> 
+</tr> 
+
+</table>
+
+<table>
+<tr><td colspan=3><center><h3>After Removing Dirty Data Logs</h3></center></td></tr>
+<tr>
+<td> Test Log </td> 
+</tr>
+
+<tr>
+  <td> <img src="./images/Test_Acc.png"></td> 
+</tr> 
+</table>
+<p> 
+Dirty Data are some wrong samples generated before used to train Triplet Loss.<br>
+Trilet Loss only use Triad Data like [Img1 of PersonA,Img2 of PersonA,Img3 of PersonB] to train.<br>
+But we added some data like  [Img1 of PersonA,Img2 of PersonA,Img3 of PersonA] into training set. After removing those data,performance increased greatly.<br>
+</p>
+</p>
+
+
+
+<hr>
+<h2> Discussion Problems</h2>
+
+<p> 
+<ul>
+<li> 1.Discussion performance geometric detection methods. </li>
+<p>Results are shown in previous section <mark>Results[Ex_1]</mark>.<br>
+The opencv build in findcontour function can be used to detect edges. But it requires an artificially designed threshold for different images and is not easy to segment the ear and the face skin.<br>
+The Haar detection can work most of the time. But it's easy to go wrong and often cannot detect any ears as it has shown in <mark>Results[EX_1_Haar_Detection]</mark>. <br>
+Thus, we decided to use a deep learning method for ear segmentation.<br>
+</p>
+
+<li> 2.Train two detection models with different performance(evaluate with mean IOU) to evaluate the detection model's contribution to the whole program. The better one is trained on more epochs to have lower loss. </li>
+<p>
+	To find out the importance of detection models' ability, we trained two models (one of whom with higher IOU and lower loss) to detect ears.<br>
+	We use Faster-RCNN to detect ears and we modified the model framework from <a href = "https://github.com/you359/Keras-FasterRCNN"> you359</a>'s work.<br> We made the annotation all by our selves and the modified the Faster-RCNN model workable on our datasets.(The verification network is totally built and tested by ourselves without any online sources' help.)<br><br>
+	We notate the detected ears generated by the better model as <mark>'DetectB'</mark> and the other one as <mark>'DetectA'</mark> in the following discussions.
+
+
+</p>
+
+<li>3.What effect does the learning rate have on how your neural network is trained? Illustrate your answer by training your model using different learning rates.</li> 
+<p>
+	The learning rate can't be too large. For pre-trained ResNet-50 + classifier, the lr should be like 0.00001 and for simple resblock feature map + classifier, the lr can be at most 0.0001.<br>
+	If the learning rate is too large, then the loss will fluctuate violently. And the loss will not decrese at all. The acc will always be about 50% (similar to randomly guess). I think that's because of the sigmoid/softmax output activation function. The large learning rate lead to gradient vanishing and then the model cannot learn at all.<br>
+	With small learning rate, the loss can be reduced and acc can increase correctly.
+</p>
+
+<li>4.Experiment to evaluate the performance of three feature extraction model.</li> 
+<p> 
+	We tried 6 different structures of feature extraction model.(We discussion the performance based on accuracy when they are attached to classifier and get well trained.)<br><br>
+	1. ResNet-50 weights<br>
+	This model performs worst with an acc lower than 80% both on DetectA and DetectB.[Definition of DetectA and DetectB can be seen in disscusion 2].<br><br>
+	2. Simpler CNN with shorcut<br>
+	Surprisingly, this model works better than the previous one. In my opinion I think it's because of the small size of the datasets. Small dataset are harder to train a large network and simpler network can be easier to convergence.<br><br>
+
+	3. Small shorcut CNN with Triplet loss (leave it untrainable when training the classifier)<br>
+	Small model means the feature map of each image is [27*27*64].
+	This model have an acc at <mark>84.43%</mark> on DetectA and <mark>88.1%</mark> on DectectB.<br>
+	The acc is much higher than previous models.<br>
+
+
+	4. Small shorcut CNN with Triplet loss <br>
+	This model have an acc at <mark>79.6%</mark> on DetectA and <mark>85.8%</mark> on DectectB.<br>
+	With trainable feature map model, the acc comes down. I think it's because of overfitting.<br><br>
+
+
+	5. Large shorcut CNN with Triplet loss (leave it untrainable when training the classifier)<br>
+	Large model means the feature map of each image is [56*56*128].<br>
+	<mark>Does not converge</mark>. We did not find a suitable learning rate to make it work.<br><br>
+
+	6. Large shorcut CNN with Triplet loss <br>
+	This model have an acc at <mark>80.73%</mark> on DetectA and <mark>85.4%</mark> on DectectB.<br><br>
+
+	7. Assume we have perfect detection model,the triplet loss works much better.<br>
+	During the training period, the highest validation acc is nearly 96%, which means with ideal detection model, the triplet loss can perform much better than normal cross-entrophy loss.<br>
+	And we tried to train 20 epochs on ground truth and 1 epoch on detected images. The acc is 92%.<br> From which we can see the main bottleneck of this program is the performance of the detection model.<br><br>
+
+
+</p>
+
+<li>Evaluate the contribution of the two parts to the whole model's performance.</li> 
+<p>
+	With fixed feature_extraction model, it's obviously that the detection model with higher IOU performs better. That's because we train the feature_extraction model based on the manually cropped ground truth. The higher the IOU is, the closer the distance between ground truth and detected ears in fearture domain.<br>
+	And with fixed feature extraction model, it's surprisingly that relatively smaller network performs better than the larger networks. The smaller feature extraction model has higher general acc and can be computed faster. And in the triplet loss models, small network with less parameters in feature map performs better. And it seems that it's a better idea to leave the pre-trained triplet loss featuren extraction model untrainable during the following training steps.<br>
+	And in my opinion, small networks have lower ability to describe comple boundaries so they're less likely to overfitting.The feature map with less parameters is the same reason.<br>
+</p>
+
+</ul>
+</p>
+
+<hr>
+<h2> Conclusions </h2>
+
+<p>
+We succefully build two connected neural networks to fulfill this ear recognition. We tested two different detection models and six different verification models. The best combination has an acc at 88.1%(Trained on ground Truth and tested on Detected Images).
+We borrowed the idea of DeepID to use Triplet Loss to improve the performance.
+Due to the workload and project focus, we trained the detection model based on an open-source Faster-RCNN model and then build the verification model totally by ourselves. By comparision, we bulid an ideal system for ear varification with accuracy of 88.1%. And we discuss the potential ways of improving accuracy. For example, we can try to find a better detection model.
+</p>
+
+
+<hr>
+<h2> Credits and Bibliography </h2>
+<p><cite>The Assignment Cookbook</cite> by <a href="http://www.cs.bu.edu/fac/betke/cs440/restricted/project/">CS 640 Assignment</a>.</p>
+<p><cite>The open Faster-RCNN</cite> by <a href="https://github.com/you359/Keras-FasterRCNN">you359</a>.</p>
+<p><cite><a href="https://www.cv-foundation.org/openaccess/content_cvpr_2014/papers/Sun_Deep_Learning_Face_2014_CVPR_paper.pdf">Sun, Y., Wang, X. and Tang, X., 2014. Deep learning face representation from predicting 10,000 classes. In Proceedings of the IEEE conference on computer vision and pattern recognition (pp. 1891-1898)</a></p>
+<p>
+  Xinsha Wang works with me to make annotations, design the sturcture and test the model.
+</p>
+<hr>
+</div>
+</body>
+
+
+
+</html>
